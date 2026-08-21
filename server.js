@@ -22,12 +22,12 @@ const ENABLE_THINKING_MODE = false; // Set to true to enable chat_template_kwarg
 
 // Model mapping (adjust based on available NIM models)
 const MODEL_MAPPING = {
-  'gpt-4': 'z-ai/glm-5.1',                    // closest thing to GLM-5.2 still standing — try this first
-  'gpt-4-turbo': 'moonshotai/kimi-k2.6',      // huge MoE, strong creative writing reputation
-  'gpt-4o': 'deepseek-ai/deepseek-v3.2',      // DeepSeek family, same lineage as Chimera's base
-  'claude-3-opus': 'nvidia/nemotron-3-ultra', // NVIDIA's own current flagship reasoning model
-  'claude-3-sonnet': 'moonshotai/kimi-k2.6',  // duplicate mapping, same model, different label
-  'gemini-pro': 'z-ai/glm-5.1'                // duplicate mapping, backup access point
+  'gpt-4': 'z-ai/glm-5.2',
+  'gpt-4-turbo': 'moonshotai/kimi-k2.6',
+  'gpt-4o': 'deepseek-ai/deepseek-v3.2',
+  'claude-3-opus': 'nvidia/nemotron-3-ultra',
+  'claude-3-sonnet': 'moonshotai/kimi-k2.6',
+  'gemini-pro': 'z-ai/glm-5.2'
 };
 
 // Health check endpoint
