@@ -24,7 +24,7 @@ const ENABLE_THINKING_MODE = true; // Set to true to enable chat_template_kwargs
 const MODEL_MAPPING = {
   'gpt-4': 'deepseek-ai/deepseek-v4-flash-0731',
   'gpt-4-turbo': 'moonshotai/kimi-k2.6',
-  'gpt-4o': 'nvidia / nemotron-3-nano-omni-30b-a3b-reasoning',
+  'gpt-4o': 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning',
   'claude-3-opus': 'nvidia/nemotron-3-ultra',
   'claude-3-sonnet': 'z-ai/glm4.7',
   'gemini-pro': 'z-ai/glm-5.2'
