@@ -26,7 +26,7 @@ const MODEL_MAPPING = {
   'gpt-4-turbo': 'moonshotai/kimi-k2.6',
   'gpt-4o': 'deepseek-ai/deepseek-v3.2',
   'claude-3-opus': 'nvidia/nemotron-3-ultra',
-  'claude-3-sonnet': 'moonshotai/kimi-k2.6',
+  'claude-3-sonnet': 'zai/glm-4.7',
   'gemini-pro': 'z-ai/glm-5.2'
 };
 
