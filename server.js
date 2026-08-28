@@ -30,7 +30,7 @@ const MODEL_MAPPING = {
   'gpt-4o': 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning',
   'claude-3-opus': 'nvidia/nemotron-3-ultra',
   'claude-3-sonnet': 'minimaxai/minimax-m3',
-  'gemini-pro': 'minimaxai/minimax-m3'
+  'gemini-pro': 'moonshotai/kimi-k3'
 };
 
 // Health check endpoint
