@@ -18,10 +18,10 @@ const NIM_API_BASE =
 const NIM_API_KEY = process.env.NIM_API_KEY;
 
 // Reasoning display toggle
-const SHOW_REASONING = false;
+const SHOW_REASONING = true;
 
 // Thinking mode toggle
-const ENABLE_THINKING_MODE = false;
+const ENABLE_THINKING_MODE = true;
 
 // Model mapping
 const MODEL_MAPPING = {
