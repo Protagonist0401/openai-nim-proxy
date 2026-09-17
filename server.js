@@ -1,245 +1,177 @@
-// server.js - OpenAI to NVIDIA NIM API Proxy
+// server.js - OpenAI → NVIDIA NIM Proxy (Clean Version)
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
-// Middleware
+
+// ========== MIDDLEWARE ==========
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-// NVIDIA NIM API configuration
-const NIM_API_BASE =
-  process.env.NIM_API_BASE || 'https://integrate.api.nvidia.com/v1';
+
+// Log every request (helps debugging)
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  next();
+});
+
+// ========== CONFIG ==========
+const NIM_API_BASE = process.env.NIM_API_BASE || 'https://integrate.api.nvidia.com/v1';
 const NIM_API_KEY = process.env.NIM_API_KEY;
-// Reasoning display toggle
-const SHOW_REASONING = false;
-// Thinking mode toggle
-const ENABLE_THINKING_MODE = false;
-// Model mapping
+
+// Model mapping (you can change these)
 const MODEL_MAPPING = {
   'gpt-4': 'deepseek-ai/deepseek-v4-pro-0813',
   'gpt-4-turbo': 'z-ai/glm-5-3',
   'gpt-4o': 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning',
   'claude-3-opus': 'google/gemma-4-31b-it',
   'claude-3-sonnet': 'z-ai/glm-5-3-flash',
-  'gemini-pro': 'moonshotai/kimi-k3'
+  'gemini-pro': 'moonshotai/kimi-k3',
+  // Add more if you want
 };
-// Health check endpoint
+
+// ========== ROUTES ==========
+
+// Health check
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     service: 'OpenAI to NVIDIA NIM Proxy',
-    reasoning_display: SHOW_REASONING,
-    thinking_mode: ENABLE_THINKING_MODE
+    time: new Date().toISOString()
   });
 });
-// List models endpoint
+
+// List models
 app.get('/v1/models', (req, res) => {
-  const models = Object.keys(MODEL_MAPPING).map(model => ({
-    id: model,
+  const models = Object.keys(MODEL_MAPPING).map(id => ({
+    id,
     object: 'model',
-    created: Date.now(),
+    created: Math.floor(Date.now() / 1000),
     owned_by: 'nvidia-nim-proxy'
   }));
+
   res.json({
     object: 'list',
     data: models
   });
 });
-// Chat completions endpoint
+
+// Main chat completions endpoint
 app.post('/v1/chat/completions', async (req, res) => {
   try {
-    const {
-      model,
-      messages,
-      temperature,
-      max_tokens,
-      stream
-    } = req.body;
-    // Select mapped NVIDIA model
-    const nimModel = MODEL_MAPPING[model] || model;
-    // Build NVIDIA request
-    const nimRequest = {
-      model: nimModel,
-      messages: messages,
-      temperature: temperature || 0.6,
-      max_tokens: max_tokens || 9024,
-      stream: stream || false
-    };
-    // Enable thinking mode when configured
-    if (ENABLE_THINKING_MODE) {
-      nimRequest.extra_body = {
-        chat_template_kwargs: {
-          thinking: true
+    if (!NIM_API_KEY) {
+      return res.status(500).json({
+        error: {
+          message: 'NIM_API_KEY is not set in environment variables',
+          type: 'server_error',
+          code: 500
         }
-      };
+      });
     }
-    // Send exactly ONE request to NVIDIA.
-    // No automatic retries on 429.
+
+    const { model, messages, temperature, max_tokens, stream = false } = req.body;
+
+    const nimModel = MODEL_MAPPING[model] || model;
+
+    const payload = {
+      model: nimModel,
+      messages,
+      temperature: temperature ?? 0.7,
+      max_tokens: max_tokens ?? 4096,
+      stream
+    };
+
+    console.log(`→ Forwarding to NVIDIA model: ${nimModel}`);
+
     const response = await axios.post(
       `${NIM_API_BASE}/chat/completions`,
-      nimRequest,
+      payload,
       {
         headers: {
-          Authorization: `Bearer ${NIM_API_KEY}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${NIM_API_KEY}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
-        responseType: stream ? 'stream' : 'json'
+        responseType: stream ? 'stream' : 'json',
+        timeout: 120000
       }
     );
-    // Handle streaming response
+
+    // ===== Streaming =====
     if (stream) {
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
-      let buffer = '';
-      let reasoningStarted = false;
-      response.data.on('data', chunk => {
-        buffer += chunk.toString();
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-        lines.forEach(line => {
-          if (!line.startsWith('data: ')) {
-            return;
-          }
-          if (line.includes('[DONE]')) {
-            res.write(line + '\n\n');
-            return;
-          }
-          try {
-            const data = JSON.parse(line.slice(6));
-            if (data.choices?.[0]?.delta) {
-              const reasoning =
-                data.choices[0].delta.reasoning_content;
-              const content =
-                data.choices[0].delta.content;
-              if (SHOW_REASONING) {
-                let combinedContent = '';
-                if (reasoning && !reasoningStarted) {
-                  combinedContent =
-                    '<think>\n' + reasoning;
-                  reasoningStarted = true;
-                } else if (reasoning) {
-                  combinedContent = reasoning;
-                }
-                if (content && reasoningStarted) {
-                  combinedContent +=
-                    '</think>\n\n' + content;
-                  reasoningStarted = false;
-                } else if (content) {
-                  combinedContent += content;
-                }
-                if (combinedContent) {
-                  data.choices[0].delta.content =
-                    combinedContent;
-                  delete data.choices[0].delta.reasoning_content;
-                }
-              } else {
-                data.choices[0].delta.content =
-                  content || '';
-                delete data.choices[0].delta.reasoning_content;
-              }
-            }
-            res.write(
-              `data: ${JSON.stringify(data)}\n\n`
-            );
-          } catch (e) {
-            res.write(line + '\n\n');
-          }
-        });
-      });
-      response.data.on('end', () => {
-        res.end();
-      });
-      response.data.on('error', err => {
-        console.error('Stream error:', err);
-        res.end();
-      });
-    } else {
-      // Transform NVIDIA response to OpenAI format
-      const openaiResponse = {
-        id: `chatcmpl-${Date.now()}`,
-        object: 'chat.completion',
-        created: Math.floor(Date.now() / 1000),
-        model: model,
-        choices: response.data.choices.map(choice => {
-          let fullContent =
-            choice.message?.content || '';
-          if (
-            SHOW_REASONING &&
-            choice.message?.reasoning_content
-          ) {
-            fullContent =
-              '<think>\n' +
-              choice.message.reasoning_content +
-              '\n</think>\n\n' +
-              fullContent;
-          }
-          return {
-            index: choice.index,
-            message: {
-              role: choice.message.role,
-              content: fullContent
-            },
-            finish_reason: choice.finish_reason
-          };
-        }),
-        usage: response.data.usage || {
-          prompt_tokens: 0,
-          completion_tokens: 0,
-          total_tokens: 0
-        }
-      };
-      res.json(openaiResponse);
+
+      response.data.pipe(res);
+      return;
     }
+
+    // ===== Non-streaming =====
+    const data = response.data;
+
+    const openaiResponse = {
+      id: data.id || `chatcmpl-${Date.now()}`,
+      object: 'chat.completion',
+      created: data.created || Math.floor(Date.now() / 1000),
+      model: model,
+      choices: data.choices.map(choice => ({
+        index: choice.index,
+        message: {
+          role: choice.message.role,
+          content: choice.message.content || ''
+        },
+        finish_reason: choice.finish_reason
+      })),
+      usage: data.usage || {
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0
+      }
+    };
+
+    res.json(openaiResponse);
+
   } catch (error) {
-    console.error('NVIDIA/Proxy error:', {
+    console.error('Proxy Error:', {
       status: error.response?.status,
       data: error.response?.data,
       message: error.message
     });
-    const status =
-      error.response?.status || 500;
+
+    const status = error.response?.status || 500;
+    const message =
+      error.response?.data?.message ||
+      error.response?.data?.detail ||
+      error.message ||
+      'Internal server error';
+
     res.status(status).json({
       error: {
-        message:
-          error.response?.data?.detail ||
-          error.response?.data?.message ||
-          error.message ||
-          'Internal server error',
+        message,
         type: 'invalid_request_error',
         code: status
       }
     });
   }
 });
-// Catch-all for unsupported endpoints
+
+// Catch-all
 app.all('*', (req, res) => {
   res.status(404).json({
     error: {
-      message: `Endpoint ${req.path} not found`,
+      message: `Endpoint ${req.originalUrl} not found`,
       type: 'invalid_request_error',
       code: 404
     }
   });
 });
-// Start server
+
+// ========== START ==========
 app.listen(PORT, () => {
-  console.log(
-    `OpenAI to NVIDIA NIM Proxy running on port ${PORT}`
-  );
-  console.log(
-    `Health check: http://localhost:${PORT}/health`
-  );
-  console.log(
-    `Reasoning display: ${
-      SHOW_REASONING ? 'ENABLED' : 'DISABLED'
-    }`
-  );
-  console.log(
-    `Thinking mode: ${
-      ENABLE_THINKING_MODE ? 'ENABLED' : 'DISABLED'
-    }`
-  );
+  console.log(`🚀 Proxy running on port ${PORT}`);
+  console.log(`Health: http://localhost:${PORT}/health`);
+  console.log(`Models: http://localhost:${PORT}/v1/models`);
 });
