@@ -24,10 +24,10 @@ const NIM_API_KEY = process.env.NIM_API_KEY;
 // Model mapping (you can change these)
 const MODEL_MAPPING = {
   'gpt-4': 'deepseek-ai/deepseek-v4-pro-0813',
-  'gpt-4-turbo': 'z-ai/glm-5-3',
+  'gpt-4-turbo': 'z-ai/glm-5.3',
   'gpt-4o': 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning',
   'claude-3-opus': 'google/gemma-4-31b-it',
-  'claude-3-sonnet': 'z-ai/glm-5-3-flash',
+  'claude-3-sonnet': 'z-ai/glm-5.3-flash',
   'gemini-pro': 'moonshotai/kimi-k3',
   // Add more if you want
 };
