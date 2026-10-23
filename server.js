@@ -28,7 +28,7 @@ const MODEL_MAPPING = {
   'gpt-4o': 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning',
   'claude-3-opus': 'google/gemma-4-31b-it',
   'claude-3-sonnet': 'z-ai/glm-5.3-flash',
-  'gemini-pro': 'moonshotai/kimi-k3',
+  'gemini-pro': 'minimaxai/minimax-m3.1-flash',
   // Add more if you want
 };
 
